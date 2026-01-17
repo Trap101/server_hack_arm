@@ -20,6 +20,11 @@ BUILD_CONFIGURATION ?= Debug
 # Export IMAGE_VERSION for usage in docker compose commands
 export IMAGE_VERSION
 
+# Multi-platform build support
+PLATFORMS ?= linux/amd64
+PLATFORMS_MULTIARCH ?= linux/amd64,linux/arm64
+BUILD_PLATFORM ?= linux/amd64
+
 # Export make variables as actual environment variables,
 # so that we can pass them as docker secrets during build
 export STEAM_USERNAME := $(call strip_quotes,STEAM_USERNAME)
@@ -36,7 +41,7 @@ install:
 build:
 	@echo Building image `$(IMAGE_NAME):$(IMAGE_VERSION)` with BUILD_CONFIGURATION=$(BUILD_CONFIGURATION)...
 	@docker buildx build \
-		--platform=linux/amd64 \
+		--platform=$(BUILD_PLATFORM) \
 		--build-arg BUILD_CONFIGURATION=$(BUILD_CONFIGURATION) \
 		-t $(IMAGE_NAME):$(IMAGE_VERSION) \
 		$(if $(filter-out local,$(IMAGE_VERSION)),-t $(IMAGE_NAME):latest) \
@@ -48,6 +53,23 @@ build:
 		--progress=plain \
 		.
 	@echo Build complete.
+
+# Build for multiple platforms (requires docker buildx)
+build-multiplatform:
+	@echo Building multi-platform image for: $(PLATFORMS_MULTIARCH)...
+	@docker buildx build \
+		--platform=$(PLATFORMS_MULTIARCH) \
+		--build-arg BUILD_CONFIGURATION=$(BUILD_CONFIGURATION) \
+		-t $(IMAGE_NAME):$(IMAGE_VERSION) \
+		$(if $(filter-out local,$(IMAGE_VERSION)),-t $(IMAGE_NAME):latest) \
+		--secret id=steam_username,env=STEAM_USERNAME \
+		--secret id=steam_password,env=STEAM_PASSWORD \
+		--secret id=steam_refresh_token,env=STEAM_REFRESH_TOKEN \
+		-f $(DOCKERFILE_PATH) \
+		--push \
+		--progress=plain \
+		.
+	@echo Multi-platform build complete.
 
 # Build and run everything
 up: build
@@ -90,17 +112,22 @@ clean:
 # Show help
 help:
 	@echo Stardew Valley Dedicated Server
-	@echo.
+	@echo ""
 	@echo Targets:
-	@echo   make install  - Install development dependencies (commitlint, git hooks)
-	@echo   make setup    - Run first-time Steam authentication and game download
-	@echo   make up       - Build and start server
-	@echo   make build    - Build docker image (tag: local)
-	@echo   make logs     - View server logs
-	@echo   make cli      - Attach to interactive server console (tmux-based)
-	@echo   make down     - Stop the server
-	@echo   make clean    - Remove containers, volumes and images
-	@echo.
-	@echo Note: Use GitHub Actions for building and pushing release images
+	@echo "  make install           - Install development dependencies"
+	@echo "  make setup             - Run first-time Steam authentication and game download"
+	@echo "  make up                - Build and start server"
+	@echo "  make build             - Build docker image for current platform (tag: local)"
+	@echo "  make build-multiplatform - Build for amd64 and arm64 (requires push)"
+	@echo "  make logs              - View server logs"
+	@echo "  make cli               - Attach to interactive server console (tmux-based)"
+	@echo "  make down              - Stop the server"
+	@echo "  make clean             - Remove containers, volumes and images"
+	@echo ""
+	@echo Variables:
+	@echo "  BUILD_PLATFORM=linux/arm64 - Build for specific platform (default: linux/amd64)"
+	@echo "  PLATFORMS_MULTIARCH=linux/amd64,linux/arm64 - Platforms for multi-build"
+	@echo ""
+	@echo "Note: Use GitHub Actions for building and pushing release images"
 
 .DEFAULT_GOAL := run
