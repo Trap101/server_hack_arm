@@ -14,6 +14,14 @@ RUN dotnet publish -c Release -o /app --no-restore
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
+# CRITICAL: Install OpenSSL for SteamKit2 ARM64 compatibility
+# SteamKit2 depends on native OpenSSL libraries for cryptography
+# This ensures ARM64 systems have the correct architecture-specific OpenSSL
+RUN apt-get update && apt-get install -y \
+    libssl-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app .
 
 ENV PORT=3001
