@@ -50,3 +50,6 @@ node_modules/
 
 # Extra mods
 /mods
+
+# Git worktrees
+.worktrees/
