@@ -94,6 +94,7 @@ RUN --mount=type=cache,target=/root/.nuget/packages \
 # ============================================================================
 FROM --platform=$BUILDPLATFORM jlesage/baseimage-gui:debian-11-v4.10.6 AS server
 
+ARG TARGETARCH
 ARG SMAPI_VERSION
 
 ENV APP_NAME="Stardew Dedicated Server" \
