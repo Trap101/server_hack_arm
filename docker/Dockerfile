@@ -1,5 +1,7 @@
 # Global build arguments
 ARG SMAPI_VERSION=4.1.10
+ARG TARGETARCH=amd64
+ARG TARGETOS=linux
 
 # ============================================================================
 # Stage 1: Build steam-service downloader
@@ -73,7 +75,7 @@ RUN --mount=type=cache,target=/root/.nuget/packages \
     dotnet publish /src/dll-patcher \
     --configuration Release \
     --self-contained true \
-    --runtime linux-x64 \
+    --runtime linux-$TARGETARCH \
     -p:PublishSingleFile=true \
     -p:PublishTrimmed=true \
     -o /output/dll-patcher
@@ -146,10 +148,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install tmux (binary download, separate layer for cacheability)
-RUN curl -L -O https://github.com/tmux/tmux-builds/releases/download/v3.6a/tmux-3.6a-linux-x86_64.tar.gz && \
-    tar -xzf tmux-3.6a-linux-x86_64.tar.gz && \
+# TARGETARCH is automatically set by docker buildx (amd64, arm64, etc.)
+RUN ARCH=$(case ${TARGETARCH} in \
+    amd64) echo "x86_64" ;; \
+    arm64) echo "aarch64" ;; \
+    *) echo "x86_64" ;; \
+    esac) && \
+    curl -L -O "https://github.com/tmux/tmux-builds/releases/download/v3.6a/tmux-3.6a-linux-${ARCH}.tar.gz" && \
+    tar -xzf tmux-3.6a-linux-${ARCH}.tar.gz && \
     install -m 0755 ./tmux /usr/local/bin/tmux && \
-    rm -r ./tmux tmux-3.6a-linux-x86_64.tar.gz
+    rm -r ./tmux tmux-3.6a-linux-${ARCH}.tar.gz
 
 # Install vsdbg for remote debugging
 # TODO: Make installation optional for local/debug builds, commented for now
